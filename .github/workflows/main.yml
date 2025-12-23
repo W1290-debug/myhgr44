@@ -1,68 +1,51 @@
-name: Chrome VPS for Linux Mint (Final Solution)
+name: VNC Desktop VPS
 on:
   workflow_dispatch:
 jobs:
-  chrome-vps:
+  vnc-desktop:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
-      - name: Setup Secure SSH User with X11 Forwarding
+      - name: Setup VNC Server and Desktop
         run: |
           sudo apt-get update
-          # تثبيت كل ما يلزم بما في ذلك مكتبات إضافية للتعامل مع مشاكل Snap
-          sudo apt-get install -y openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libpixman-1-0 libproxy1v5 libgtk-3-0 wget gnupg
-          
-          # إنشاء المستخدم وتحديد صلاحياته
-          sudo useradd -m -s /bin/bash github-user
-          echo 'github-user ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/github-user
-          
-          # إعداد المفتاح العام للدخول الآمن عبر SSH
-          sudo mkdir -p /home/github-user/.ssh
-          echo '${{ secrets.SSH_PUBLIC_KEY }}' | sudo tee /home/github-user/.ssh/authorized_keys
-          sudo chown -R github-user:github-user /home/github-user/.ssh
-          sudo chmod 700 /home/github-user/.ssh
-          sudo chmod 600 /home/github-user/.ssh/authorized_keys
-          
-          # تأمين خادم SSH وتفعيل X11 Forwarding
-          sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
-          sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-          sudo sed -i 's/#X11Forwarding no/X11Forwarding yes/' /etc/ssh/sshd_config
-          sudo systemctl restart ssh
-          echo "✅ SSH User configured with X11 Forwarding enabled."
+          sudo apt-get install -y xfce4 xfce4-goodies tightvncserver
+          echo "✅ Desktop and VNC server installed."
 
-      - name: Install Google Chrome (Not Chromium)
+      - name: Configure VNC and Start It
         run: |
-          # إضافة مستودع Google الرسمي ومفتاحه
-          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-          sudo apt-get update
+          # إعداد كلمة مرور VNC
+          mkdir -p ~/.vnc
+          echo '${{ secrets.VNC_PASSWORD }}' | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
           
-          # تثبيت Google Chrome
-          sudo apt-get install -y google-chrome-stable
-          echo "✅ Google Chrome installed."
+          # بدء خادم VNC على الشاشة رقم 1 (المنفذ 5901)
+          # وربطه ببيئة سطح المكتب XFCE
+          vncserver :1 -geometry 1280x720 -depth 24 -localhost
+          echo "✅ VNC server started on :1 (port 5901)."
 
       - name: Install Tailscale
         run: |
           curl -fsSL https://tailscale.com/install.sh | sh
-          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=chrome-vps-${{ github.run_id }}
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=vnc-desktop-${{ github.run_id }}
           tsIP=$(tailscale ip -4 | head -n 1)
           echo "TAILSCALE_IP=$tsIP" >> $GITHUB_ENV
           echo "✅ Tailscale IP: $tsIP"
 
       - name: Display Connection Info
         run: |
-          echo "🚀 Chrome VPS is ready!"
+          echo "🚀 VNC Desktop VPS is ready!"
           echo "--------------------------------------------------"
           echo "📍 Tailscale IP: $TAILSCALE_IP"
-          echo "🔑 To connect and launch Chrome, open your terminal and run:"
-          echo "ssh -i ~/.ssh/vps_key -X -o 'ForwardX11Trusted yes' github-user@$TAILSCALE_IP"
-          echo ""
-          echo "After you connect, just type: google-chrome-stable"
+          echo "🖥️  VNC Port: 5901"
+          echo "🔐 To connect, open your VNC Viewer and connect to:"
+          echo "    $TAILSCALE_IP:5901"
+          echo "🔑 Use the VNC password you set in the repository secrets."
           echo "--------------------------------------------------"
 
       - name: Keep VPS Alive
         run: |
           while true; do
-            echo "[$(date)] Chrome VPS running..."
+            echo "[$(date)] VNC Desktop VPS running..."
             sleep 300
           done
