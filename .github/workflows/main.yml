@@ -1,4 +1,4 @@
-name: Chromium VPS for Linux Mint (Fixed)
+name: Chromium VPS for Linux Mint (Final)
 on:
   workflow_dispatch:
 jobs:
@@ -9,9 +9,8 @@ jobs:
       - name: Setup Secure SSH User with X11 Forwarding
         run: |
           sudo apt-get update
-          # تثبيت كل ما يلزم: SSH, xauth للمصادقة, والمكتبات الرسومية الأساسية لـ Chromium
-          # --- تم تصحيح اسمي الحزمين التاليين ---
-          sudo apt-get install -y openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64
+          # تثبيت كل ما يلزم: SSH, xauth, والمكتبات الرسومية الأساسية لـ Chromium
+          sudo apt-get install -y openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libpixman-1-0
           
           # إنشاء المستخدم وتحديد صلاحياته
           sudo useradd -m -s /bin/bash github-user
@@ -23,6 +22,11 @@ jobs:
           sudo chown -R github-user:github-user /home/github-user/.ssh
           sudo chmod 700 /home/github-user/.ssh
           sudo chmod 600 /home/github-user/.ssh/authorized_keys
+          
+          # إصلاح: إنشاء ملف المصادقة .Xauthority مسبقًا وتعيين الصلاحيات الصحيحة
+          sudo touch /home/github-user/.Xauthority
+          sudo chown github-user:github-user /home/github-user/.Xauthority
+          sudo chmod 600 /home/github-user/.Xauthority
           
           # تأمين خادم SSH وتفعيل X11 Forwarding
           sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
