@@ -26,14 +26,11 @@ jobs:
           sudo systemctl restart ssh
           echo "✅ SSH User configured with X11 Forwarding enabled."
 
-      - name: Install Chrome
+      - name: Install Chromium
         run: |
-          sudo apt-get install -y wget gnupg
-          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
           sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
-          echo "✅ Chrome installed."
+          sudo apt-get install -y chromium-browser
+          echo "✅ chromium installed."
 
       - name: Install Tailscale
         run: |
@@ -51,7 +48,7 @@ jobs:
           echo "🔑 To connect and launch Chrome, open your terminal and run:"
           echo "ssh -i ~/.ssh/vps_key -X github-user@$TAILSCALE_IP"
           echo ""
-          echo "After you connect, just type: google-chrome --no-sandbox"
+          echo "After you connect, just type: chromium-browser"
           echo "--------------------------------------------------"
 
       - name: Keep VPS Alive
