@@ -1,4 +1,4 @@
-name: Chromium VPS for Linux Mint (Final Fix)
+name: Chromium VPS for Linux Mint (Final)
 on:
   workflow_dispatch:
 jobs:
@@ -9,8 +9,12 @@ jobs:
       - name: Setup Secure SSH User with X11 Forwarding
         run: |
           sudo apt-get update
-          # تثبيت كل ما يلزم بما في ذلك مكتبات إضافية للتعامل مع مشاكل Snap
-          sudo apt-get install -y openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libpixman-1-0 libproxy1v5 libgtk-3-0 libgconf-2-4
+          # تفعيل مستودع 'universe' للحصول على حزم إضافية
+          sudo add-apt-repository -y universe
+          sudo apt-get update
+          
+          # تثبيت كل ما يلزم: SSH, xauth, والمكتبات الرسومية الأساسية لـ Chromium
+          sudo apt-get install -y openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libpixman-1-0 libproxy1v5 libgtk-3-0
           
           # إنشاء المستخدم وتحديد صلاحياته
           sudo useradd -m -s /bin/bash github-user
