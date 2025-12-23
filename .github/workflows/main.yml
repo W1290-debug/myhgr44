@@ -11,7 +11,7 @@ jobs:
           sudo apt-get update
           # تثبيت كل ما يلزم: SSH, xauth للمصادقة, والمكتبات الرسومية الأساسية لـ Chromium
           # --- تم تصحيح اسمي الحزمين التاليين ---
-          sudo apt-get install -y openssh-server sudo xauth libgl1-mesa-glx libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2
+          sudo apt-get install -y openssh-server sudo xauth libgli-mesa-glx libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 Libasound2
           
           # إنشاء المستخدم وتحديد صلاحياته
           sudo useradd -m -s /bin/bash github-user
