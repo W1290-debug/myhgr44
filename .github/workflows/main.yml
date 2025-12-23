@@ -1,51 +1,40 @@
-name: VNC Desktop VPS
+name: VPS
 on:
   workflow_dispatch:
 jobs:
-  vnc-desktop:
+  secure-vps:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
-      - name: Setup VNC Server and Desktop
+      - name: Install & Configure SSH
         run: |
-          sudo apt-get update
-          sudo apt-get install -y xfce4 xfce4-goodies tightvncserver
-          echo "✅ Desktop and VNC server installed."
-
-      - name: Configure VNC and Start It
-        run: |
-          # إعداد كلمة مرور VNC
-          mkdir -p ~/.vnc
-          echo '${{ secrets.VNC_PASSWORD }}' | vncpasswd -f > ~/.vnc/passwd
-          chmod 600 ~/.vnc/passwd
-          
-          # بدء خادم VNC على الشاشة رقم 1 (المنفذ 5901)
-          # وربطه ببيئة سطح المكتب XFCE
-          vncserver :1 -geometry 1280x720 -depth 24 -localhost
-          echo "✅ VNC server started on :1 (port 5901)."
+          sudo apt update -y
+          sudo apt install -y openssh-server
+          sudo systemctl enable ssh
+          sudo systemctl start ssh
+          echo "root:admin@123" | sudo chpasswd
+          echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config
+          sudo service ssh restart
+          echo "鉁� SSH user: root | pass: admin@123"
 
       - name: Install Tailscale
         run: |
           curl -fsSL https://tailscale.com/install.sh | sh
-          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=vnc-desktop-${{ github.run_id }}
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=vps-${{ github.run_id }}
           tsIP=$(tailscale ip -4 | head -n 1)
           echo "TAILSCALE_IP=$tsIP" >> $GITHUB_ENV
-          echo "✅ Tailscale IP: $tsIP"
+          echo "鉁� Tailscale IP: $tsIP"
 
-      - name: Display Connection Info
+      - name: Verify SSH Access
         run: |
-          echo "🚀 VNC Desktop VPS is ready!"
-          echo "--------------------------------------------------"
-          echo "📍 Tailscale IP: $TAILSCALE_IP"
-          echo "🖥️  VNC Port: 5901"
-          echo "🔐 To connect, open your VNC Viewer and connect to:"
-          echo "    $TAILSCALE_IP:5901"
-          echo "🔑 Use the VNC password you set in the repository secrets."
-          echo "--------------------------------------------------"
+          echo "Tailscale VPS ready!"
+          echo "IP: $env:TAILSCALE_IP"
+          echo "User: root"
+          echo "Pass: admin@123"
 
       - name: Keep VPS Alive
         run: |
           while true; do
-            echo "[$(date)] VNC Desktop VPS running..."
+            echo "[$(date)] VPS running..."
             sleep 300
           done
