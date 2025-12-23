@@ -1,20 +1,16 @@
-name: Chromium VPS for Linux Mint (Final)
+name: Chrome VPS for Linux Mint (Final Solution)
 on:
   workflow_dispatch:
 jobs:
-  chromium-vps:
+  chrome-vps:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
       - name: Setup Secure SSH User with X11 Forwarding
         run: |
           sudo apt-get update
-          # تفعيل مستودع 'universe' للحصول على حزم إضافية
-          sudo add-apt-repository -y universe
-          sudo apt-get update
-          
-          # تثبيت كل ما يلزم: SSH, xauth, والمكتبات الرسومية الأساسية لـ Chromium
-          sudo apt-get install -y openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libpixman-1-0 libproxy1v5 libgtk-3-0
+          # تثبيت كل ما يلزم بما في ذلك مكتبات إضافية للتعامل مع مشاكل Snap
+          sudo apt-get install -y openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libpixman-1-0 libproxy1v5 libgtk-3-0 wget gnupg
           
           # إنشاء المستخدم وتحديد صلاحياته
           sudo useradd -m -s /bin/bash github-user
@@ -34,34 +30,39 @@ jobs:
           sudo systemctl restart ssh
           echo "✅ SSH User configured with X11 Forwarding enabled."
 
-      - name: Install Chromium
+      - name: Install Google Chrome (Not Chromium)
         run: |
+          # إضافة مستودع Google الرسمي ومفتاحه
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
           sudo apt-get update
-          sudo apt-get install -y chromium-browser
-          echo "✅ Chromium installed."
+          
+          # تثبيت Google Chrome
+          sudo apt-get install -y google-chrome-stable
+          echo "✅ Google Chrome installed."
 
       - name: Install Tailscale
         run: |
           curl -fsSL https://tailscale.com/install.sh | sh
-          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=chromium-vps-${{ github.run_id }}
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=chrome-vps-${{ github.run_id }}
           tsIP=$(tailscale ip -4 | head -n 1)
           echo "TAILSCALE_IP=$tsIP" >> $GITHUB_ENV
           echo "✅ Tailscale IP: $tsIP"
 
       - name: Display Connection Info
         run: |
-          echo "🚀 Chromium VPS is ready!"
+          echo "🚀 Chrome VPS is ready!"
           echo "--------------------------------------------------"
           echo "📍 Tailscale IP: $TAILSCALE_IP"
-          echo "🔑 To connect and launch Chromium, open your terminal and run:"
+          echo "🔑 To connect and launch Chrome, open your terminal and run:"
           echo "ssh -i ~/.ssh/vps_key -X -o 'ForwardX11Trusted yes' github-user@$TAILSCALE_IP"
           echo ""
-          echo "After you connect, just type: chromium-browser"
+          echo "After you connect, just type: google-chrome-stable"
           echo "--------------------------------------------------"
 
       - name: Keep VPS Alive
         run: |
           while true; do
-            echo "[$(date)] Chromium VPS running..."
+            echo "[$(date)] Chrome VPS running..."
             sleep 300
           done
