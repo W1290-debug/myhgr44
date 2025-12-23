@@ -1,0 +1,62 @@
+name: Chrome VPS 
+on:
+  workflow_dispatch:
+jobs:
+  chrome-vps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Setup Secure SSH User with X11 Forwarding
+        run: |
+          sudo apt-get update && sudo apt-get install -y openssh-server sudo
+          sudo useradd -m -s /bin/bash github-user
+          echo 'github-user ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/github-user
+          
+         
+          sudo mkdir -p /home/github-user/.ssh
+          echo '${{ secrets.SSH_PUBLIC_KEY }}' | sudo tee /home/github-user/.ssh/authorized_keys
+          sudo chown -R github-user:github-user /home/github-user/.ssh
+          sudo chmod 700 /home/github-user/.ssh
+          sudo chmod 600 /home/github-user/.ssh/authorized_keys
+          
+          
+          sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+          sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+          sudo sed -i 's/#X11Forwarding no/X11Forwarding yes/' /etc/ssh/sshd_config
+          sudo systemctl restart ssh
+          echo "✅ SSH User configured with X11 Forwarding enabled."
+
+      - name: Install Chrome
+        run: |
+          sudo apt-get install -y wget gnupg
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          echo "✅ Chrome installed."
+
+      - name: Install Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=chrome-vps-${{ github.run_id }}
+          tsIP=$(tailscale ip -4 | head -n 1)
+          echo "TAILSCALE_IP=$tsIP" >> $GITHUB_ENV
+          echo "✅ Tailscale IP: $tsIP"
+
+      - name: Display Connection Info
+        run: |
+          echo "🚀 Chrome VPS is ready for Linux Mint!"
+          echo "--------------------------------------------------"
+          echo "📍 Tailscale IP: $TAILSCALE_IP"
+          echo "🔑 To connect and launch Chrome, open your terminal and run:"
+          echo "ssh -i ~/.ssh/vps_key -X github-user@$TAILSCALE_IP"
+          echo ""
+          echo "After you connect, just type: google-chrome --no-sandbox"
+          echo "--------------------------------------------------"
+
+      - name: Keep VPS Alive
+        run: |
+          while true; do
+            echo "[$(date)] Chrome VPS running..."
+            sleep 300
+          done
