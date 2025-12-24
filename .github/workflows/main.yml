@@ -1,4 +1,4 @@
-name: ZAP Proxy VPS
+name: ZAP Proxy VPS (Robust)
 on:
   workflow_dispatch:
 jobs:
@@ -9,21 +9,14 @@ jobs:
       - name: Setup Secure SSH User with X11 Forwarding
         run: |
           sudo apt-get update
-          # تثبيت Java و X11 والمكتبات الأساسية
           sudo apt-get install -y openjdk-11-jre openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libpixman-1-0 libproxy1v5 libgtk-3-0
-          
-          # إنشاء المستخدم وتحديد صلاحياته
           sudo useradd -m -s /bin/bash github-user
           echo 'github-user ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/github-user
-          
-          # إعداد المفتاح العام للدخول الآمن عبر SSH
           sudo mkdir -p /home/github-user/.ssh
           echo '${{ secrets.SSH_PUBLIC_KEY }}' | sudo tee /home/github-user/.ssh/authorized_keys
           sudo chown -R github-user:github-user /home/github-user/.ssh
           sudo chmod 700 /home/github-user/.ssh
           sudo chmod 600 /home/github-user/.ssh/authorized_keys
-          
-          # تأمين خادم SSH وتفعيل X11 Forwarding
           sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
           sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
           sudo sed -i 's/#X11Forwarding no/X11Forwarding yes/' /etc/ssh/sshd_config
@@ -32,11 +25,22 @@ jobs:
 
       - name: Install OWASP ZAP
         run: |
-          # تحميل وتثبيت ZAP
-          wget -q https://github.com/zaproxy/zaproxy/releases/download/v2.14.0/ZAP_2.14.0_Linux.tar.gz
-          sudo tar -xvf ZAP_2.14.0_Linux.tar.gz -C /opt/
-          sudo chown -R github-user:github-user /opt/ZAP_2.14.0
-          echo "✅ OWASP ZAP installed in /opt/ZAP_2.14.0"
+          # تحديد إصدار ZAP لتسهيل التعديل
+          ZAP_VERSION="2.15.0"
+          wget -q https://github.com/zaproxy/zaproxy/releases/download/v${ZAP_VERSION}/ZAP_${ZAP_VERSION}_Linux.tar.gz
+          
+          # التأكد من أن الملف تم تحميله
+          if [ ! -f "ZAP_${ZAP_VERSION}_Linux.tar.gz" ]; then
+            echo "Error: ZAP download failed."
+            exit 1
+          fi
+          
+          # فك ضغط الملف (استخدام -xzf هو الأصح لملفات .tar.gz)
+          sudo tar -xzf ZAP_${ZAP_VERSION}_Linux.tar.gz -C /opt/
+          
+          # تغيير الملكية
+          sudo chown -R github-user:github-user /opt/ZAP_${ZAP_VERSION}
+          echo "✅ OWASP ZAP ${ZAP_VERSION} installed in /opt/ZAP_${ZAP_VERSION}"
 
       - name: Install Tailscale
         run: |
@@ -54,7 +58,7 @@ jobs:
           echo "🔑 To connect and launch ZAP, open your terminal and run:"
           echo "ssh -i ~/.ssh/vps_key -X -o 'ForwardX11Trusted yes' github-user@$TAILSCALE_IP"
           echo ""
-          echo "After you connect, just type: /opt/ZAP_2.14.0/zap.sh"
+          echo "After you connect, just type: /opt/ZAP_2.15.0/zap.sh"
           echo "--------------------------------------------------"
 
       - name: Keep VPS Alive
