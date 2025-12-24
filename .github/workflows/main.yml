@@ -2,7 +2,7 @@ name: ZAP Proxy VPS (Final & Robust)
 on:
   workflow_dispatch:
 env:
-  ZAP_VERSION: 2.15.0 # تعريف الإصدار هنا هو الطريقة الصحيحة
+  ZAP_VERSION: 2.15.0 # Defining the version here is the correct method
 jobs:
   zap-vps:
     runs-on: ubuntu-latest
@@ -27,12 +27,31 @@ jobs:
 
       - name: Install OWASP ZAP
         run: |
-          # تحميل وفك الضغط في خطوة واحدة (طريقة أكثر قوة)
-          wget -q -O - https://github.com/zaproxy/zaproxy/releases/download/v${{ env.ZAP_VERSION }}/ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz | sudo tar -xf - -C /opt/
+          # --- FIXED SECTION ---
+          # Instead of piping directly to tar, we first download to a temporary file.
+          # This allows us to verify the download was successful before attempting to extract it.
+          echo "Downloading OWASP ZAP..."
+          ZAP_TGZ="/tmp/ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz"
+          wget -q -O "$ZAP_TGZ" "https://github.com/zaproxy/zaproxy/releases/download/v${{ env.ZAP_VERSION }}/ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz"
           
-          # تغيير الملكية
-          sudo chown -R github-user:github-user /opt/ZAP_${{ env.ZAP_VERSION}}
-          echo "✅ OWASP ZAP ${{ env.ZAP_VERSION }} installed in /opt/ZAP_${{ env.ZAP_VERSION }}"
+          # Verify the downloaded file is a valid gzip compressed tar archive.
+          if file "$ZAP_TGZ" | grep -q "gzip compressed"; then
+            echo "✅ Download verified. Extracting ZAP..."
+            sudo tar -xzf "$ZAP_TGZ" -C /opt/
+            
+            # Change ownership
+            sudo chown -R github-user:github-user /opt/ZAP_${{ env.ZAP_VERSION}}
+            echo "✅ OWASP ZAP ${{ env.ZAP_VERSION }} installed in /opt/ZAP_${{ env.ZAP_VERSION }}"
+            
+            # Clean up the downloaded tar file
+            rm "$ZAP_TGZ"
+          else
+            # If the file is not valid, print an error and exit.
+            echo "❌ Error: Downloaded file is not a valid gzip archive."
+            echo "File type detected:"
+            file "$ZAP_TGZ"
+            exit 1
+          fi
 
       - name: Install Tailscale
         run: |
