@@ -1,18 +1,16 @@
-name: ZAP Proxy VPS (Final & Robust)
+name: Browser VPS (with GUI via X11)
 on:
   workflow_dispatch:
-env:
-  # FIX: Updated to a more recent, known-good version to resolve the 404 error.
-  ZAP_VERSION: 2.16.0
 jobs:
-  zap-vps:
+  browser-vps:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
       - name: Setup Secure SSH User with X11 Forwarding
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-11-jre openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libpixman-1-0 libproxy1v5 libgtk-3-0
+          # تثبيت الحزم الأساسية للنظام و X11 والمتصفح
+          sudo apt-get install -y openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libgtk-3-0 dbus-x11
           sudo useradd -m -s /bin/bash github-user
           echo 'github-user ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/github-user
           sudo mkdir -p /home/github-user/.ssh
@@ -26,71 +24,35 @@ jobs:
           sudo systemctl restart ssh
           echo "✅ SSH User configured with X11 Forwarding enabled."
 
-      - name: Install OWASP ZAP
+      # --- تم حذف خطوة تثبيت ZAP واستبدالها بتثبيت المتصفح ---
+      - name: Install Firefox Browser
         run: |
-          # --- ROBUST AND DEBUGGED SECTION ---
-          # We will use wget with flags to follow redirects and retry, and have curl as a backup.
-          echo "Attempting to download OWASP ZAP..."
-          ZAP_TGZ="/tmp/ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz"
-          ZAP_URL="https://github.com/zaproxy/zaproxy/releases/download/v${{ env.ZAP_VERSION }}/ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz"
-          
-          # Attempt download with wget, with retries and following redirects
-          wget --tries=3 --retry-connrefused --waitretry=5 -L -O "$ZAP_TGZ" "$ZAP_URL"
-          
-          # If wget failed (file doesn't exist or is zero size), try with curl
-          if [ ! -s "$ZAP_TGZ" ]; then
-            echo "wget failed or produced an empty file. Retrying with curl..."
-            curl -L -o "$ZAP_TGZ" "$ZAP_URL"
-          fi
-          
-          # Final check: does the file exist and is it not empty?
-          if [ ! -s "$ZAP_TGZ" ]; then
-            echo "❌ Error: Failed to download ZAP archive with both wget and curl."
-            exit 1
-          fi
-          
-          # Verify the downloaded file is a valid gzip compressed tar archive.
-          echo "Verifying downloaded file type..."
-          if file "$ZAP_TGZ" | grep -q "gzip compressed"; then
-            echo "✅ Download verified. Extracting ZAP..."
-            sudo tar -xzf "$ZAP_TGZ" -C /opt/
-            
-            # Change ownership
-            sudo chown -R github-user:github-user /opt/ZAP_${{ env.ZAP_VERSION}}
-            echo "✅ OWASP ZAP ${{ env.ZAP_VERSION }} installed in /opt/ZAP_${{ env.ZAP_VERSION }}"
-            
-            # Clean up the downloaded tar file
-            rm "$ZAP_TGZ"
-          else
-            # If the file is not valid, print an error and exit.
-            echo "❌ Error: Downloaded file is not a valid gzip archive."
-            echo "File type detected:"
-            file "$ZAP_TGZ"
-            exit 1
-          fi
+          echo "Installing Firefox browser..."
+          sudo apt-get install -y firefox
+          echo "✅ Firefox browser installed successfully."
 
       - name: Install Tailscale
         run: |
           curl -fsSL https://tailscale.com/install.sh | sh
-          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=zap-vps-${{ github.run_id }}
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=browser-vps-${{ github.run_id }}
           tsIP=$(tailscale ip -4 | head -n 1)
           echo "TAILSCALE_IP=$tsIP" >> $GITHUB_ENV
           echo "✅ Tailscale IP: $tsIP"
 
       - name: Display Connection Info
         run: |
-          echo "🚀 ZAP Proxy VPS is ready!"
+          echo "🚀 Browser VPS is ready!"
           echo "--------------------------------------------------"
           echo "📍 Tailscale IP: $TAILSCALE_IP"
-          echo "🔑 To connect and launch ZAP, open your terminal and run:"
+          echo "🔑 To connect and launch the browser, open your terminal and run:"
           echo "ssh -i ~/.ssh/vps_key -X -o 'ForwardX11Trusted yes' github-user@$TAILSCALE_IP"
           echo ""
-          echo "After you connect, just type: /opt/ZAP_${{ env.ZAP_VERSION }}/zap.sh"
+          echo "After you connect, just type: firefox"
           echo "--------------------------------------------------"
 
       - name: Keep VPS Alive
         run: |
           while true; do
-            echo "[$(date)] ZAP VPS running..."
+            echo "[$(date)] Browser VPS running..."
             sleep 300
           done
