@@ -28,7 +28,7 @@ jobs:
       - name: Install OWASP ZAP
         run: |
           # تحميل وفك الضغط في خطوة واحدة (طريقة أكثر قوة)
-          wget -q -O - https://github.com/zaproxy/zaproxy/releases/download/v${{ env.ZAP_VERSION }}/ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz | sudo tar -xzf - -C /opt/
+          wget -q -O - https://github.com/zaproxy/zaproxy/releases/download/v${{ env.ZAP_VERSION }}/ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz | sudo tar -xf - -C /opt/
           
           # تغيير الملكية
           sudo chown -R github-user:github-user /opt/ZAP_${{ env.ZAP_VERSION}}
