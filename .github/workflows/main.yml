@@ -1,6 +1,8 @@
-name: ZAP Proxy VPS (Robust)
+name: ZAP Proxy VPS (Final & Robust)
 on:
   workflow_dispatch:
+env:
+  ZAP_VERSION: 2.15.0 # تعريف الإصدار هنا هو الطريقة الصحيحة
 jobs:
   zap-vps:
     runs-on: ubuntu-latest
@@ -25,22 +27,12 @@ jobs:
 
       - name: Install OWASP ZAP
         run: |
-          # تحديد إصدار ZAP لتسهيل التعديل
-          ZAP_VERSION="2.15.0"
-          wget -q https://github.com/zaproxy/zaproxy/releases/download/v${ZAP_VERSION}/ZAP_${ZAP_VERSION}_Linux.tar.gz
-          
-          # التأكد من أن الملف تم تحميله
-          if [ ! -f "ZAP_${ZAP_VERSION}_Linux.tar.gz" ]; then
-            echo "Error: ZAP download failed."
-            exit 1
-          fi
-          
-          # فك ضغط الملف (استخدام -xzf هو الأصح لملفات .tar.gz)
-          sudo tar -xzf ZAP_${ZAP_VERSION}_Linux.tar.gz -C /opt/
+          # تحميل وفك الضغط في خطوة واحدة (طريقة أكثر قوة)
+          wget -q -O - https://github.com/zaproxy/zaproxy/releases/download/v${{ env.ZAP_VERSION }}/ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz | sudo tar -xzf - -C /opt/
           
           # تغيير الملكية
-          sudo chown -R github-user:github-user /opt/ZAP_${ZAP_VERSION}
-          echo "✅ OWASP ZAP ${ZAP_VERSION} installed in /opt/ZAP_${ZAP_VERSION}"
+          sudo chown -R github-user:github-user /opt/ZAP_${{ env.ZAP_VERSION}}
+          echo "✅ OWASP ZAP ${{ env.ZAP_VERSION }} installed in /opt/ZAP_${{ env.ZAP_VERSION }}"
 
       - name: Install Tailscale
         run: |
@@ -58,7 +50,7 @@ jobs:
           echo "🔑 To connect and launch ZAP, open your terminal and run:"
           echo "ssh -i ~/.ssh/vps_key -X -o 'ForwardX11Trusted yes' github-user@$TAILSCALE_IP"
           echo ""
-          echo "After you connect, just type: /opt/ZAP_2.15.0/zap.sh"
+          echo "After you connect, just type: /opt/ZAP_${{ env.ZAP_VERSION }}/zap.sh"
           echo "--------------------------------------------------"
 
       - name: Keep VPS Alive
