@@ -2,7 +2,8 @@ name: ZAP Proxy VPS (Final & Robust)
 on:
   workflow_dispatch:
 env:
-  ZAP_VERSION: 2.15.0 # Defining the version here is the correct method
+  # FIX: Updated to a more recent, known-good version to resolve the 404 error.
+  ZAP_VERSION: 2.16.0
 jobs:
   zap-vps:
     runs-on: ubuntu-latest
