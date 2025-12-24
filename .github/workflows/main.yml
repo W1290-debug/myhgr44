@@ -1,4 +1,4 @@
-name: GUI Browser VPS (X11 Fixed)
+name: GUI Browser VPS (X11 Fixed v2)
 on:
   workflow_dispatch:
 jobs:
@@ -6,11 +6,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
-      - name: Setup Secure SSH User with X11 Forwarding
+      - name: Setup VPS for GUI (SSH, X11, Firefox)
         run: |
           sudo apt-get update
-          # تثبيت الحزم الأساسية للنظام و X11 والمتصفح
-          sudo apt-get install -y openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libgtk-3-0 dbus-x11 firefox
+          # تثبيت جميع الحزم المطلوبة دفعة واحدة
+          sudo apt-get install -y --no-install-recommends openssh-server sudo xauth dbus-x11 firefox libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libgtk-3-0
+          
+          # إعداد المستخدم
           sudo useradd -m -s /bin/bash github-user
           echo 'github-user ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/github-user
           sudo mkdir -p /home/github-user/.ssh
@@ -19,15 +21,21 @@ jobs:
           sudo chmod 700 /home/github-user/.ssh
           sudo chmod 600 /home/github-user/.ssh/authorized_keys
           
-          # --- إصلاح مشكلة مصادقة X11 ---
-          sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
-          sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-          sudo sed -i 's/#X11Forwarding no/X11Forwarding yes/' /etc/ssh/sshd_config
-          # هذا هو السطر الأهم لحل مشكلة المصادقة
-          sudo sed -i 's/#X11UseLocalhost yes/X11UseLocalhost no/' /etc/ssh/sshd_config
+          # --- إصلاحات شاملة لـ X11 Forwarding ---
+          # استخدام awk لضمان عدم تكرار الأسطر إذا تم تشغيل السكريبت أكثر من مرة
+          sudo awk '!/^PermitRootLogin/ && !/^PasswordAuthentication/ && !/^X11Forwarding/ && !/^X11UseLocalhost/ && !/^X11DisplayOffset/' /etc/ssh/sshd_config > /tmp/sshd_config.tmp && sudo mv /tmp/sshd_config.tmp /etc/ssh/sshd_config
           
+          echo "PermitRootLogin no" | sudo tee -a /etc/ssh/sshd_config
+          echo "PasswordAuthentication no" | sudo tee -a /etc/ssh/sshd_config
+          echo "X11Forwarding yes" | sudo tee -a /etc/ssh/sshd_config
+          echo "X11UseLocalhost no" | sudo tee -a /etc/ssh/sshd_config
+          echo "X11DisplayOffset 10" | sudo tee -a /etc/ssh/sshd_config
+          
+          # إعادة تشغيل SSH وتطبيق الإعدادات
           sudo systemctl restart ssh
-          echo "✅ SSH User configured with X11 Forwarding enabled and authentication fixed."
+          
+          echo "✅ VPS setup complete. Verifying SSH configuration:"
+          sudo grep -E 'PermitRootLogin|PasswordAuthentication|X11Forwarding|X11UseLocalhost|X11DisplayOffset' /etc/ssh/sshd_config
 
       - name: Install Tailscale
         run: |
@@ -47,6 +55,9 @@ jobs:
           echo ""
           echo "After you connect, just type: firefox"
           echo "--------------------------------------------------"
+          echo ""
+          echo "⚠️ If you STILL get an authentication error, run this command on your LOCAL machine once:"
+          echo "xhost +"
 
       - name: Keep VPS Alive
         run: |
