@@ -1,40 +1,65 @@
-name: VPS
+name: ZAP Proxy VPS
 on:
   workflow_dispatch:
 jobs:
-  secure-vps:
+  zap-vps:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
-      - name: Install & Configure SSH
+      - name: Setup Secure SSH User with X11 Forwarding
         run: |
-          sudo apt update -y
-          sudo apt install -y openssh-server
-          sudo systemctl enable ssh
-          sudo systemctl start ssh
-          echo "root:admin@123" | sudo chpasswd
-          echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config
-          sudo service ssh restart
-          echo "鉁� SSH user: root | pass: admin@123"
+          sudo apt-get update
+          # تثبيت Java و X11 والمكتبات الأساسية
+          sudo apt-get install -y openjdk-11-jre openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libpixman-1-0 libproxy1v5 libgtk-3-0
+          
+          # إنشاء المستخدم وتحديد صلاحياته
+          sudo useradd -m -s /bin/bash github-user
+          echo 'github-user ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/github-user
+          
+          # إعداد المفتاح العام للدخول الآمن عبر SSH
+          sudo mkdir -p /home/github-user/.ssh
+          echo '${{ secrets.SSH_PUBLIC_KEY }}' | sudo tee /home/github-user/.ssh/authorized_keys
+          sudo chown -R github-user:github-user /home/github-user/.ssh
+          sudo chmod 700 /home/github-user/.ssh
+          sudo chmod 600 /home/github-user/.ssh/authorized_keys
+          
+          # تأمين خادم SSH وتفعيل X11 Forwarding
+          sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+          sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+          sudo sed -i 's/#X11Forwarding no/X11Forwarding yes/' /etc/ssh/sshd_config
+          sudo systemctl restart ssh
+          echo "✅ SSH User configured with X11 Forwarding enabled."
+
+      - name: Install OWASP ZAP
+        run: |
+          # تحميل وتثبيت ZAP
+          wget -q https://github.com/zaproxy/zaproxy/releases/download/v2.14.0/ZAP_2.14.0_Linux.tar.gz
+          sudo tar -xvf ZAP_2.14.0_Linux.tar.gz -C /opt/
+          sudo chown -R github-user:github-user /opt/ZAP_2.14.0
+          echo "✅ OWASP ZAP installed in /opt/ZAP_2.14.0"
 
       - name: Install Tailscale
         run: |
           curl -fsSL https://tailscale.com/install.sh | sh
-          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=vps-${{ github.run_id }}
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=zap-vps-${{ github.run_id }}
           tsIP=$(tailscale ip -4 | head -n 1)
           echo "TAILSCALE_IP=$tsIP" >> $GITHUB_ENV
-          echo "鉁� Tailscale IP: $tsIP"
+          echo "✅ Tailscale IP: $tsIP"
 
-      - name: Verify SSH Access
+      - name: Display Connection Info
         run: |
-          echo "Tailscale VPS ready!"
-          echo "IP: $env:TAILSCALE_IP"
-          echo "User: root"
-          echo "Pass: admin@123"
+          echo "🚀 ZAP Proxy VPS is ready!"
+          echo "--------------------------------------------------"
+          echo "📍 Tailscale IP: $TAILSCALE_IP"
+          echo "🔑 To connect and launch ZAP, open your terminal and run:"
+          echo "ssh -i ~/.ssh/vps_key -X -o 'ForwardX11Trusted yes' github-user@$TAILSCALE_IP"
+          echo ""
+          echo "After you connect, just type: /opt/ZAP_2.14.0/zap.sh"
+          echo "--------------------------------------------------"
 
       - name: Keep VPS Alive
         run: |
           while true; do
-            echo "[$(date)] VPS running..."
+            echo "[$(date)] ZAP VPS running..."
             sleep 300
           done
