@@ -27,14 +27,29 @@ jobs:
 
       - name: Install OWASP ZAP
         run: |
-          # --- FIXED SECTION ---
-          # Instead of piping directly to tar, we first download to a temporary file.
-          # This allows us to verify the download was successful before attempting to extract it.
-          echo "Downloading OWASP ZAP..."
+          # --- ROBUST AND DEBUGGED SECTION ---
+          # We will use wget with flags to follow redirects and retry, and have curl as a backup.
+          echo "Attempting to download OWASP ZAP..."
           ZAP_TGZ="/tmp/ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz"
-          wget -q -O "$ZAP_TGZ" "https://github.com/zaproxy/zaproxy/releases/download/v${{ env.ZAP_VERSION }}/ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz"
+          ZAP_URL="https://github.com/zaproxy/zaproxy/releases/download/v${{ env.ZAP_VERSION }}/ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz"
+          
+          # Attempt download with wget, with retries and following redirects
+          wget --tries=3 --retry-connrefused --waitretry=5 -L -O "$ZAP_TGZ" "$ZAP_URL"
+          
+          # If wget failed (file doesn't exist or is zero size), try with curl
+          if [ ! -s "$ZAP_TGZ" ]; then
+            echo "wget failed or produced an empty file. Retrying with curl..."
+            curl -L -o "$ZAP_TGZ" "$ZAP_URL"
+          fi
+          
+          # Final check: does the file exist and is it not empty?
+          if [ ! -s "$ZAP_TGZ" ]; then
+            echo "❌ Error: Failed to download ZAP archive with both wget and curl."
+            exit 1
+          fi
           
           # Verify the downloaded file is a valid gzip compressed tar archive.
+          echo "Verifying downloaded file type..."
           if file "$ZAP_TGZ" | grep -q "gzip compressed"; then
             echo "✅ Download verified. Extracting ZAP..."
             sudo tar -xzf "$ZAP_TGZ" -C /opt/
