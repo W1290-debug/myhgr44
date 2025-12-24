@@ -1,4 +1,4 @@
-name: Browser VPS (with GUI via X11)
+name: GUI Browser VPS (X11 Fixed)
 on:
   workflow_dispatch:
 jobs:
@@ -10,7 +10,7 @@ jobs:
         run: |
           sudo apt-get update
           # تثبيت الحزم الأساسية للنظام و X11 والمتصفح
-          sudo apt-get install -y openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libgtk-3-0 dbus-x11
+          sudo apt-get install -y openssh-server sudo xauth libgl1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1 libasound2t64 libgtk-3-0 dbus-x11 firefox
           sudo useradd -m -s /bin/bash github-user
           echo 'github-user ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/github-user
           sudo mkdir -p /home/github-user/.ssh
@@ -18,18 +18,16 @@ jobs:
           sudo chown -R github-user:github-user /home/github-user/.ssh
           sudo chmod 700 /home/github-user/.ssh
           sudo chmod 600 /home/github-user/.ssh/authorized_keys
+          
+          # --- إصلاح مشكلة مصادقة X11 ---
           sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
           sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
           sudo sed -i 's/#X11Forwarding no/X11Forwarding yes/' /etc/ssh/sshd_config
+          # هذا هو السطر الأهم لحل مشكلة المصادقة
+          sudo sed -i 's/#X11UseLocalhost yes/X11UseLocalhost no/' /etc/ssh/sshd_config
+          
           sudo systemctl restart ssh
-          echo "✅ SSH User configured with X11 Forwarding enabled."
-
-      # --- تم حذف خطوة تثبيت ZAP واستبدالها بتثبيت المتصفح ---
-      - name: Install Firefox Browser
-        run: |
-          echo "Installing Firefox browser..."
-          sudo apt-get install -y firefox
-          echo "✅ Firefox browser installed successfully."
+          echo "✅ SSH User configured with X11 Forwarding enabled and authentication fixed."
 
       - name: Install Tailscale
         run: |
@@ -41,7 +39,7 @@ jobs:
 
       - name: Display Connection Info
         run: |
-          echo "🚀 Browser VPS is ready!"
+          echo "🚀 GUI Browser VPS is ready!"
           echo "--------------------------------------------------"
           echo "📍 Tailscale IP: $TAILSCALE_IP"
           echo "🔑 To connect and launch the browser, open your terminal and run:"
